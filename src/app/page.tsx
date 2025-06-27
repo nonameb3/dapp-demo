@@ -1,16 +1,57 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import {
+  Header,
+  StatsOverview,
+  ClaimRewards,
+  StakeTokens,
+  UnstakeTokens,
+  StakingOverview,
+  Faucet,
+  HowItWorks,
+  WalletConnectPrompt
+} from '@/components';
+import { Balances, StakingData } from '@/types';
 
 export default function Home() {
   const [account, setAccount] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const [amount, setAmount] = useState<number>(0);
-  const [balances] = useState({
-    diaTokenBalance: '0',
-    dappTokenBalance: '0',
-    tokenFarmBalance: '0',
+  const [stakeAmount, setStakeAmount] = useState<number>(0);
+  const [unstakeAmount, setUnstakeAmount] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<'stake' | 'faucet'>('stake');
+  
+  const [balances, setBalances] = useState<Balances>({
+    diaTokenBalance: '1000.0',
+    dappTokenBalance: '0.0',
+    tokenFarmBalance: '0.0',
   });
+  
+  const [stakingData, setStakingData] = useState<StakingData>({
+    apr: 15.5,
+    totalStaked: '125000.0',
+    dailyReward: '0.0',
+    pendingRewards: '0.0',
+  });
+
+  // Mock reward calculation effect
+  useEffect(() => {
+    if (parseFloat(balances.tokenFarmBalance) > 0) {
+      const interval = setInterval(() => {
+        const staked = parseFloat(balances.tokenFarmBalance);
+        const dailyRate = stakingData.apr / 365 / 100;
+        const newReward = staked * dailyRate;
+        
+        setStakingData(prev => ({
+          ...prev,
+          dailyReward: newReward.toFixed(6),
+          pendingRewards: (parseFloat(prev.pendingRewards) + newReward / 24).toFixed(6)
+        }));
+      }, 60000); // Update every minute for demo
+      
+      return () => clearInterval(interval);
+    }
+  }, [balances.tokenFarmBalance, stakingData.apr]);
 
   const connectWallet = async () => {
     if (typeof window !== 'undefined' && typeof window.ethereum !== 'undefined') {
@@ -29,137 +70,210 @@ export default function Home() {
 
   const handleStake = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!stakeAmount || stakeAmount <= 0) return;
+    
     setLoading(true);
-    // TODO: Implement staking logic
-    console.log('Staking:', amount);
+    
+    // Mock staking logic
     setTimeout(() => {
+      const currentDia = parseFloat(balances.diaTokenBalance);
+      const currentStaked = parseFloat(balances.tokenFarmBalance);
+      
+      if (currentDia >= stakeAmount) {
+        setBalances(prev => ({
+          ...prev,
+          diaTokenBalance: (currentDia - stakeAmount).toFixed(2),
+          tokenFarmBalance: (currentStaked + stakeAmount).toFixed(2)
+        }));
+        
+        // Update total staked
+        setStakingData(prev => ({
+          ...prev,
+          totalStaked: (parseFloat(prev.totalStaked) + stakeAmount).toFixed(2)
+        }));
+        
+        setStakeAmount(0);
+      }
+      
       setLoading(false);
-      setAmount(0);
     }, 2000);
   };
 
-  const handleUnstake = async () => {
+  const handleUnstake = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!unstakeAmount || unstakeAmount <= 0) return;
+    
+    const currentStaked = parseFloat(balances.tokenFarmBalance);
+    if (unstakeAmount > currentStaked) return;
+    
     setLoading(true);
-    // TODO: Implement unstaking logic
-    console.log('Unstaking');
+    
+    // Mock removing stake logic
     setTimeout(() => {
+      const currentDia = parseFloat(balances.diaTokenBalance);
+      
+      setBalances(prev => ({
+        ...prev,
+        diaTokenBalance: (currentDia + unstakeAmount).toFixed(2),
+        tokenFarmBalance: (currentStaked - unstakeAmount).toFixed(2)
+      }));
+      
+      // Update staking data
+      setStakingData(prev => ({
+        ...prev,
+        totalStaked: (parseFloat(prev.totalStaked) - unstakeAmount).toFixed(2)
+      }));
+      
+      setUnstakeAmount(0);
       setLoading(false);
     }, 2000);
+  };
+
+  const handleUnstakeAll = async () => {
+    const stakedAmount = parseFloat(balances.tokenFarmBalance);
+    if (stakedAmount <= 0) return;
+    
+    setLoading(true);
+    
+    // Mock removing all stake logic
+    setTimeout(() => {
+      const currentDia = parseFloat(balances.diaTokenBalance);
+      const pendingRewards = parseFloat(stakingData.pendingRewards);
+      
+      setBalances(prev => ({
+        ...prev,
+        diaTokenBalance: (currentDia + stakedAmount).toFixed(2),
+        dappTokenBalance: (parseFloat(prev.dappTokenBalance) + pendingRewards).toFixed(6),
+        tokenFarmBalance: '0.0'
+      }));
+      
+      // Update staking data
+      setStakingData(prev => ({
+        ...prev,
+        totalStaked: (parseFloat(prev.totalStaked) - stakedAmount).toFixed(2),
+        dailyReward: '0.0',
+        pendingRewards: '0.0'
+      }));
+      
+      setLoading(false);
+    }, 2000);
+  };
+
+  const handleClaimFaucet = async () => {
+    setLoading(true);
+    
+    // Mock faucet logic
+    setTimeout(() => {
+      const faucetAmount = 100;
+      setBalances(prev => ({
+        ...prev,
+        diaTokenBalance: (parseFloat(prev.diaTokenBalance) + faucetAmount).toFixed(2)
+      }));
+      setLoading(false);
+    }, 1500);
+  };
+
+  const handleClaimRewards = async () => {
+    const rewards = parseFloat(stakingData.pendingRewards);
+    if (rewards <= 0) return;
+    
+    setLoading(true);
+
+    setTimeout(() => {
+      setBalances(prev => ({
+        ...prev,
+        dappTokenBalance: (parseFloat(prev.dappTokenBalance) + rewards).toFixed(6)
+      }));
+      
+      setStakingData(prev => ({
+        ...prev,
+        pendingRewards: '0.0'
+      }));
+      
+      setLoading(false);
+    }, 1500);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-sm">DF</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">DeFi Token Farm</span>
-            </div>
-            <div className="text-sm text-gray-600">
-              {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Not Connected'}
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+      <Header account={account} connectWallet={connectWallet} />
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Staking Balance</h3>
-            <p className="text-3xl font-bold text-blue-600">
-              {balances.tokenFarmBalance} <span className="text-sm text-gray-500">mDIA</span>
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Reward Balance</h3>
-            <p className="text-3xl font-bold text-green-600">
-              {balances.dappTokenBalance} <span className="text-sm text-gray-500">DAPP</span>
-            </p>
-          </div>
-        </div>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <StatsOverview balances={balances} stakingData={stakingData} />
 
-        {/* Staking Form */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Stake Tokens</h2>
+        {/* Tab Navigation */}
+        <div className="bg-white/80 backdrop-blur-md rounded-xl shadow-lg border border-gray-200 mb-8">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('stake')}
+              className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                activeTab === 'stake'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              💰 Stake & Earn
+            </button>
+            <button
+              onClick={() => setActiveTab('faucet')}
+              className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                activeTab === 'faucet'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              🚰 Faucet
+            </button>
           </div>
 
-          <form onSubmit={handleStake} className="space-y-6">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-sm font-medium text-gray-700">From</label>
-                <span className="text-sm text-gray-500">
-                  Balance: {balances.diaTokenBalance} DIA
-                </span>
-              </div>
-              <div className="flex items-center space-x-4 p-4 border rounded-lg">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.0"
-                  value={amount || ''}
-                  onChange={(e) => setAmount(Number(e.target.value))}
-                  className="flex-1 text-xl font-medium border-none outline-none bg-transparent"
-                />
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-bold">DIA</span>
+          <div className="p-6">
+            {activeTab === 'stake' ? (
+              <div className="space-y-8">
+                <StakingOverview balances={balances} stakingData={stakingData} />
+
+                {account ? (
+                  <div className="space-y-8">
+                    <ClaimRewards 
+                      stakingData={stakingData}
+                      loading={loading}
+                      onClaimRewards={handleClaimRewards}
+                    />
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <StakeTokens
+                        balances={balances}
+                        stakeAmount={stakeAmount}
+                        loading={loading}
+                        onStakeAmountChange={setStakeAmount}
+                        onStake={handleStake}
+                      />
+
+                      <UnstakeTokens
+                        balances={balances}
+                        unstakeAmount={unstakeAmount}
+                        loading={loading}
+                        onUnstakeAmountChange={setUnstakeAmount}
+                        onUnstake={handleUnstake}
+                        onUnstakeAll={handleUnstakeAll}
+                      />
+                    </div>
                   </div>
-                  <span className="font-medium">DIA</span>
-                </div>
+                ) : (
+                  <WalletConnectPrompt connectWallet={connectWallet} />
+                )}
               </div>
-            </div>
-
-            <div className="space-y-3">
-              {account ? (
-                <>
-                  <button
-                    type="submit"
-                    disabled={loading || !amount}
-                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
-                  >
-                    {loading ? 'Processing...' : 'STAKE!'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleUnstake}
-                    disabled={loading}
-                    className="w-full bg-transparent border-2 border-blue-600 text-blue-600 py-3 px-4 rounded-lg font-medium hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
-                  >
-                    {loading ? 'Processing...' : 'UN-STAKE'}
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={connectWallet}
-                  className="w-full bg-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-orange-700 transition duration-200"
-                >
-                  CONNECT TO METAMASK!
-                </button>
-              )}
-            </div>
-          </form>
+            ) : (
+              <Faucet 
+                account={account}
+                loading={loading}
+                onClaimFaucet={handleClaimFaucet}
+                connectWallet={connectWallet}
+              />
+            )}
+          </div>
         </div>
 
-        {/* Instructions */}
-        <div className="mt-8 bg-blue-50 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-3">How it works:</h3>
-          <ol className="list-decimal list-inside space-y-2 text-blue-800">
-            <li>Connect your MetaMask wallet</li>
-            <li>Enter the amount of DIA tokens you want to stake</li>
-            <li>Click &quot;STAKE!&quot; to deposit your tokens</li>
-            <li>Earn DAPP tokens as rewards over time</li>
-            <li>Click &quot;UN-STAKE&quot; to withdraw your tokens and rewards</li>
-          </ol>
-        </div>
+        <HowItWorks apr={stakingData.apr} />
       </main>
     </div>
   );

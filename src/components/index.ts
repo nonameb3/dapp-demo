@@ -1,0 +1,9 @@
+export { default as Header } from './Header';
+export { default as StatsOverview } from './StatsOverview';
+export { default as ClaimRewards } from './ClaimRewards';
+export { default as StakeTokens } from './StakeTokens';
+export { default as UnstakeTokens } from './UnstakeTokens';
+export { default as StakingOverview } from './StakingOverview';
+export { default as Faucet } from './Faucet';
+export { default as HowItWorks } from './HowItWorks';
+export { default as WalletConnectPrompt } from './WalletConnectPrompt';
