@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import { useState } from 'react';
 
 export default function Home() {
   const [account, setAccount] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [amount, setAmount] = useState<number>(0);
-  const [balances, setBalances] = useState({
+  const [balances] = useState({
     diaTokenBalance: '0',
     dappTokenBalance: '0',
     tokenFarmBalance: '0',
@@ -18,7 +17,7 @@ export default function Home() {
       try {
         const accounts = await window.ethereum.request({
           method: 'eth_requestAccounts',
-        });
+        }) as string[];
         setAccount(accounts[0]);
       } catch (error) {
         console.error('Error connecting wallet:', error);
@@ -156,9 +155,9 @@ export default function Home() {
           <ol className="list-decimal list-inside space-y-2 text-blue-800">
             <li>Connect your MetaMask wallet</li>
             <li>Enter the amount of DIA tokens you want to stake</li>
-            <li>Click "STAKE!" to deposit your tokens</li>
+            <li>Click &quot;STAKE!&quot; to deposit your tokens</li>
             <li>Earn DAPP tokens as rewards over time</li>
-            <li>Click "UN-STAKE" to withdraw your tokens and rewards</li>
+            <li>Click &quot;UN-STAKE&quot; to withdraw your tokens and rewards</li>
           </ol>
         </div>
       </main>
