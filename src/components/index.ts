@@ -7,3 +7,4 @@ export { default as StakingOverview } from './StakingOverview';
 export { default as Faucet } from './Faucet';
 export { default as HowItWorks } from './HowItWorks';
 export { default as WalletConnectPrompt } from './WalletConnectPrompt';
+export { default as NotificationBanner } from './NotificationBanner';

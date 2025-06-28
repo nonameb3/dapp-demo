@@ -1,6 +1,18 @@
 import { HeaderProps } from '@/types';
 
-export default function Header({ account, connectWallet }: HeaderProps) {
+interface ExtendedHeaderProps extends HeaderProps {
+  currentChainId?: string;
+  onChainSelect?: (chainId: string) => void;
+  supportedChains?: Record<string, { name: string; chainId: string }>;
+}
+
+export default function Header({ 
+  account, 
+  connectWallet,
+  currentChainId,
+  onChainSelect,
+  supportedChains = {}
+}: ExtendedHeaderProps) {
   return (
     <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -15,10 +27,27 @@ export default function Header({ account, connectWallet }: HeaderProps) {
             </div>
           </div>
           <div className="flex items-center space-x-4">
+            {/* Network Status Indicator */}
+            {currentChainId && (
+              <div className={`flex items-center space-x-2 px-3 py-2 rounded-full text-xs font-medium ${
+                supportedChains[currentChainId] 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                <div className={`w-2 h-2 rounded-full ${
+                  supportedChains[currentChainId] ? 'bg-green-500' : 'bg-red-500'
+                }`}></div>
+                <span>
+                  {supportedChains[currentChainId]?.name || 'Unsupported Network'}
+                </span>
+              </div>
+            )}
+
+            {/* Wallet Connection */}
             {account ? (
-              <div className="flex items-center space-x-2 bg-green-100 px-3 py-2 rounded-full">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium text-green-800">
+              <div className="flex items-center space-x-2 bg-blue-100 px-3 py-2 rounded-full">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-blue-800">
                   {account.slice(0, 6)}...{account.slice(-4)}
                 </span>
               </div>
