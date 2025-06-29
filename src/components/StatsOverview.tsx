@@ -22,9 +22,14 @@ export default function StatsOverview({ balances, stakingData }: StatsOverviewPr
         </p>
       </div>
       <div className="bg-white/80 backdrop-blur-md rounded-xl shadow-lg p-6 border border-gray-200">
-        <h3 className="text-sm font-medium text-gray-600 mb-2">Current APR</h3>
-        <p className="text-2xl font-bold text-yellow-600">
-          {stakingData.apr}% <span className="text-sm text-gray-500">APR</span>
+        <h3 className="text-sm font-medium text-gray-600 mb-2">Your APR</h3>
+        <div className="flex items-center space-x-2 mb-1">
+          <p className="text-2xl font-bold text-yellow-600">
+            {stakingData.apr > 0 ? stakingData.apr.toFixed(1) : '0.0'}% <span className="text-sm text-gray-500">APR</span>
+          </p>
+        </div>
+        <p className="text-xs text-gray-500">
+          {stakingData.sharePercentage}% pool share • {stakingData.totalStaked} DIA total
         </p>
       </div>
     </div>

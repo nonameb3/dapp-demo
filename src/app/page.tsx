@@ -72,10 +72,13 @@ export default function Home() {
   });
   
   const [stakingData, setStakingData] = useState<StakingData>({
-    apr: 15.5,
-    totalStaked: '125000.0',
     dailyReward: '0.0',
+    monthlyReward: '0.0',
+    annualReward: '0.0',
+    sharePercentage: '0.0000',
+    totalStaked: '0.0',
     pendingRewards: '0.0',
+    apr: 0,
   });
 
   // Helper function to update loading states
@@ -105,6 +108,20 @@ export default function Home() {
     checkApproval();
   }, [account, stakeAmount]);
 
+  // Load pool data (APR, total staked) - works without wallet connection
+  const loadPoolData = async () => {
+    try {
+      await blockchainService.initialize();
+      const poolData = await blockchainService.getStakingData();
+      setStakingData(prev => ({
+        ...prev,
+        totalStaked: poolData.totalStaked
+      }));
+    } catch (error) {
+      console.error('Error loading pool data:', error);
+    }
+  };
+
   // Load balances from blockchain
   const loadBalances = async (userAddress: string) => {
     if (!userAddress) return;
@@ -125,6 +142,11 @@ export default function Home() {
       console.error('Error loading balances:', error);
     }
   };
+
+  // Load pool data on component mount
+  useEffect(() => {
+    loadPoolData();
+  }, []);
 
   // Check current chain on load
   useEffect(() => {
@@ -163,6 +185,9 @@ export default function Home() {
         // Reinitialize blockchain service when network changes
         try {
           await blockchainService.reinitialize();
+          
+          // Reload pool data for all users
+          await loadPoolData();
           
           // Reload balances if user is connected
           if (account) {
@@ -455,29 +480,29 @@ export default function Home() {
 
   const handleClaimRewards = async () => {
     const rewards = parseFloat(stakingData.pendingRewards);
-    if (rewards <= 0) return;
+    if (rewards <= 0 || !account) return;
     
     setLoading('claimRewards', true);
 
-    // For now, keep mock behavior since we haven't implemented automatic rewards yet
-    setTimeout(() => {
-      setBalances(prev => ({
-        ...prev,
-        dappTokenBalance: (parseFloat(prev.dappTokenBalance) + rewards).toFixed(6)
-      }));
+    try {
+      await blockchainService.claimRewards();
       
-      setStakingData(prev => ({
-        ...prev,
-        pendingRewards: '0.0'
-      }));
+      // Reload balances after successful claim
+      await loadBalances(account);
       
       setNotification({
-        message: `Claimed ${rewards.toFixed(6)} DAPP tokens!`,
+        message: `Successfully claimed ${rewards.toFixed(6)} DAPP tokens!`,
         type: 'success'
       });
-      
+    } catch (error: unknown) {
+      console.error('Claim rewards failed:', error);
+      setNotification({
+        message: `Claim failed: ${(error as any)?.message || 'Unknown error'}`,
+        type: 'error'
+      });
+    } finally {
       setLoading('claimRewards', false);
-    }, 1500);
+    }
   };
 
   return (
@@ -506,17 +531,6 @@ export default function Home() {
           />
         )}
 
-        {/* Debug refresh button */}
-        {account && (
-          <div className="mb-4">
-            <button
-              onClick={() => loadBalances(account)}
-              className="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600"
-            >
-              🔄 Refresh Balances
-            </button>
-          </div>
-        )}
         <StatsOverview balances={balances} stakingData={stakingData} />
 
         {/* Tab Navigation */}
@@ -593,7 +607,7 @@ export default function Home() {
           </div>
         </div>
 
-        <HowItWorks apr={stakingData.apr} />
+        <HowItWorks stakingData={stakingData} />
       </main>
     </div>
   );

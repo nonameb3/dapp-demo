@@ -69,31 +69,68 @@ export class BlockchainService {
   }
 
   async getStakingData(userAddress?: string): Promise<StakingData> {
-    // For now, return mock data as we haven't implemented reward calculation yet
-    let pendingRewards = '0.0';
-    let dailyReward = '0.0';
-    
-    // Only show rewards if user is actually staking
-    if (userAddress && this.contracts) {
-      try {
-        const [stakedAmount, isStaking] = await this.contracts.tokenFarm.getUserStakingInfo(userAddress);
-        if (isStaking && stakedAmount > 0) {
-          // Mock rewards based on staked amount - for demo only
-          const staked = parseFloat(formatTokenAmount(stakedAmount));
-          dailyReward = (staked * 0.155 / 365).toFixed(6); // 15.5% APY
-          pendingRewards = (staked * 0.001).toFixed(6); // Small mock pending amount
-        }
-      } catch (error) {
-        console.error('Error getting staking info:', error);
-      }
+    if (!this.contracts) {
+      throw new Error('Contracts not initialized');
     }
-    
-    return {
-      apr: 15.5,
-      totalStaked: '125000.0',
-      dailyReward,
-      pendingRewards
-    };
+
+    try {
+      // Get pool statistics
+      const [totalStakedWei, dailyRewardsWei, annualRewardsWei] = 
+        await this.contracts.tokenFarm.getPoolStats();
+      
+      // Convert total staked to human readable
+      const totalStaked = formatTokenAmount(totalStakedWei);
+      
+      let pendingRewards = '0.0';
+      let dailyReward = '0.0';
+      let monthlyReward = '0.0';
+      let annualReward = '0.0';
+      let sharePercentage = '0.0';
+      
+      // Get user-specific data if address provided
+      if (userAddress) {
+        const [stakedAmount, isStaking, pendingRewardsWei, stakingStartTime, userDailyRewardWei] = 
+          await this.contracts.tokenFarm.getUserStakingData(userAddress);
+        
+        if (isStaking && stakedAmount > 0) {
+          // Convert pending rewards from wei to human readable
+          pendingRewards = formatTokenAmount(pendingRewardsWei);
+          
+          // Get projected rewards for user
+          const [dailyWei, monthlyWei, annualWei, sharePoints] = 
+            await this.contracts.tokenFarm.getUserProjectedRewards(userAddress);
+          
+          dailyReward = formatTokenAmount(dailyWei);
+          monthlyReward = formatTokenAmount(monthlyWei);
+          annualReward = formatTokenAmount(annualWei);
+          sharePercentage = (Number(sharePoints) / 100).toFixed(4); // Convert basis points to percentage with 4 decimals
+        }
+      }
+      
+      // Calculate APR if user has staked tokens
+      let apr = 0;
+      if (userAddress) {
+        const [stakedAmount] = await this.contracts.tokenFarm.getUserStakingInfo(userAddress);
+        if (stakedAmount > 0) {
+          const staked = parseFloat(formatTokenAmount(stakedAmount));
+          const annual = parseFloat(annualReward);
+          apr = (annual / staked) * 100; // APR = (annual_rewards / staked_amount) × 100
+        }
+      }
+
+      return {
+        dailyReward,
+        monthlyReward,
+        annualReward,
+        sharePercentage,
+        totalStaked,
+        pendingRewards,
+        apr
+      };
+    } catch (error) {
+      console.error('Error getting staking data:', error);
+      throw new Error('Failed to fetch staking data from contract');
+    }
   }
 
   async claimFaucet(): Promise<boolean> {
@@ -221,6 +258,25 @@ export class BlockchainService {
       return true;
     } catch (error) {
       console.error('Unstaking failed:', error);
+      throw error;
+    }
+  }
+
+  async claimRewards(): Promise<boolean> {
+    // Ensure we're properly initialized
+    if (!this.contracts || !this.signer) {
+      await this.initialize();
+    }
+    
+    if (!this.contracts || !this.signer) throw new Error('Not connected');
+
+    try {
+      const tokenFarmWithSigner = this.contracts.tokenFarm.connect(this.signer);
+      const tx = await tokenFarmWithSigner.claimRewards();
+      await tx.wait();
+      return true;
+    } catch (error) {
+      console.error('Claim rewards failed:', error);
       throw error;
     }
   }

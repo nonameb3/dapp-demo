@@ -1,8 +1,10 @@
+import { StakingData } from '@/types';
+
 interface HowItWorksProps {
-  apr: number;
+  stakingData: StakingData;
 }
 
-export default function HowItWorks({ apr }: HowItWorksProps) {
+export default function HowItWorks({ stakingData }: HowItWorksProps) {
   return (
     <div className="bg-white/80 backdrop-blur-md rounded-xl shadow-lg p-6 border border-gray-200">
       <h3 className="text-lg font-bold text-gray-900 mb-4">🎯 How it Works</h3>
@@ -25,7 +27,9 @@ export default function HowItWorks({ apr }: HowItWorksProps) {
         <div className="text-center p-4">
           <div className="text-3xl mb-2">💰</div>
           <div className="font-semibold text-gray-900">Earn Rewards</div>
-          <div className="text-sm text-gray-600">Earn {apr}% APR in DAPP tokens</div>
+          <div className="text-sm text-gray-600">
+            Earn {stakingData.apr > 0 ? stakingData.apr.toFixed(1) : 'dynamic'}% APR (proportional rewards)
+          </div>
         </div>
       </div>
     </div>

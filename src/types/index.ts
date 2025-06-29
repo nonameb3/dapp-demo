@@ -5,10 +5,13 @@ export interface Balances {
 }
 
 export interface StakingData {
-  apr: number;
-  totalStaked: string;
   dailyReward: string;
+  monthlyReward: string;
+  annualReward: string;
+  sharePercentage: string;
+  totalStaked: string;
   pendingRewards: string;
+  apr: number;
 }
 
 export interface ComponentProps {

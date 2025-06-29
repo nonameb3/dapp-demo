@@ -9,6 +9,7 @@ const TokenFarmModule = buildModule("TokenFarmModule", (m) => {
 
   // Deploy TokenFarm with both tokens as constructor parameters
   // Note: Constructor expects (DiaToken, DappToken) in that order
+  // This version includes reward calculation and claiming functionality
   const tokenFarm = m.contract("TokenFarm", [diaToken, dappToken]);
 
   // Transfer all DappToken supply to TokenFarm for rewards

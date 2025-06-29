@@ -1,10 +1,10 @@
 import { ethers } from 'ethers';
 
-// Contract addresses on Base Sepolia testnet (V3 with partial unstaking)
+// Contract addresses on Base Sepolia testnet (V5 with proportional rewards)
 export const CONTRACT_ADDRESSES = {
-  DIA_TOKEN: '0xCD4FA800D851959f07388608446eC4F0729eec91',   // TokenFarmV3Module#DiaToken
-  DAPP_TOKEN: '0x9Bc27281CF25145b2fFa55A03Ba1c593D3459390',  // TokenFarmV3Module#DappToken
-  TOKEN_FARM: '0x1DfFdC9b5a8F0c12a573D602dA0dCC8ab94c2917'   // TokenFarmV3Module#TokenFarm
+  DIA_TOKEN: '0xFe55622104A05e4e0475d2B456A9f6845Ab74d12',   // TokenFarmProportionalModule#DiaToken
+  DAPP_TOKEN: '0x008Fe3b45778e92804d081d9779d460B2a223DB1',  // TokenFarmProportionalModule#DappToken
+  TOKEN_FARM: '0x26cc25E3aE87BE2C49d1EF554dBbA7b8369c6591'   // TokenFarmProportionalModule#TokenFarm
 };
 
 // Contract ABIs (simplified for the functions we need)
@@ -27,11 +27,18 @@ export const TOKEN_FARM_ABI = [
   'function stakeTokens(uint256 amount)',
   'function unStakeTokens(uint256 amount)',
   'function unStakeAllTokens()',
+  'function claimRewards()',
   'function getUserStakingInfo(address user) view returns (uint256 stakedAmount, bool stakingStatus)',
+  'function getUserStakingData(address user) view returns (uint256 stakedAmount, bool stakingStatus, uint256 pendingRewards, uint256 stakingStartTime, uint256 userDailyReward)',
+  'function getPendingRewards(address user) view returns (uint256)',
+  'function getPoolStats() view returns (uint256 totalStaked, uint256 dailyRewards, uint256 annualRewards, uint256 yourDailyReward, uint256 yourAnnualReward)',
+  'function getUserProjectedRewards(address user) view returns (uint256 dailyReward, uint256 monthlyReward, uint256 annualReward, uint256 sharePercentage)',
   'function getUserDiaBalance(address user) view returns (uint256)',
   'function getUserDappBalance(address user) view returns (uint256)',
   'function stakingBalance(address) view returns (uint256)',
-  'function isStaking(address) view returns (bool)'
+  'function isStaking(address) view returns (bool)',
+  'function totalStakedAmount() view returns (uint256)',
+  'function dailyRewardPool() view returns (uint256)'
 ];
 
 // Contract instances

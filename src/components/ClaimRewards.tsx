@@ -18,7 +18,6 @@ export default function ClaimRewards({ stakingData, isClaimingRewards, onClaimRe
             <div className="text-3xl font-bold text-green-600">
               {stakingData.pendingRewards || "0.000000"} <span className="text-lg text-green-500">DAPP</span>
             </div>
-            <div className="text-xs text-green-600 mt-1">≈ ${(pendingRewards * 1.5).toFixed(2)} USD</div>
             {pendingRewards === 0 && <div className="text-xs text-green-500 mt-2 italic">Start staking to earn rewards every minute!</div>}
           </div>
           <div>
