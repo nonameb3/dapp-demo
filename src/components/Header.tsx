@@ -13,6 +13,8 @@ export default function Header({
   onChainSelect,
   supportedChains = {}
 }: ExtendedHeaderProps) {
+  // onChainSelect is currently unused but kept for interface compatibility
+  void onChainSelect;
   return (
     <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

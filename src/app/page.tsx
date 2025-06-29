@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Header,
   StatsOverview,
@@ -44,6 +44,20 @@ const SUPPORTED_CHAINS = {
 
 const DEFAULT_CHAIN = SUPPORTED_CHAINS['0x14a34'];
 
+// Type for errors that might have a message property
+interface ErrorWithMessage {
+  message?: string;
+  code?: number;
+}
+
+// Helper function to safely get error message
+const getErrorMessage = (error: unknown): string => {
+  if (error && typeof error === 'object' && 'message' in error) {
+    return (error as ErrorWithMessage).message || 'Unknown error';
+  }
+  return 'Unknown error';
+};
+
 export default function Home() {
   const [account, setAccount] = useState<string>('');
   const [loadingStates, setLoadingStates] = useState({
@@ -86,8 +100,7 @@ export default function Home() {
     setLoadingStates(prev => ({ ...prev, [action]: isLoading }));
   };
 
-  // Check if any loading is active
-  const isAnyLoading = Object.values(loadingStates).some(loading => loading);
+  // Loading states are managed individually for each action
 
   // Check approval when stake amount changes
   useEffect(() => {
@@ -123,7 +136,7 @@ export default function Home() {
   };
 
   // Load balances from blockchain
-  const loadBalances = async (userAddress: string) => {
+  const loadBalances = useCallback(async (userAddress: string) => {
     if (!userAddress) return;
     
     try {
@@ -141,7 +154,7 @@ export default function Home() {
     } catch (error) {
       console.error('Error loading balances:', error);
     }
-  };
+  }, [stakeAmount]);
 
   // Load pool data on component mount
   useEffect(() => {
@@ -179,7 +192,8 @@ export default function Home() {
     
     // Listen for chain changes
     if (window.ethereum && typeof window !== 'undefined') {
-      const handleChainChanged = async (chainId: string) => {
+      const handleChainChanged = async (...args: unknown[]) => {
+        const chainId = args[0] as string;
         setCurrentChainId(chainId);
         
         // Reinitialize blockchain service when network changes
@@ -217,7 +231,7 @@ export default function Home() {
       window.ethereum.on('chainChanged', handleChainChanged);
       return () => window.ethereum?.removeListener('chainChanged', handleChainChanged);
     }
-  }, []);
+  }, [account, loadBalances]);
 
   const switchToChain = async (chainConfig: typeof SUPPORTED_CHAINS[keyof typeof SUPPORTED_CHAINS]) => {
     if (!window.ethereum) {
@@ -234,7 +248,7 @@ export default function Home() {
         params: [{ chainId: chainConfig.chainId }],
       });
     } catch (switchError: unknown) {
-      if ((switchError as any).code === 4902) {
+      if ((switchError as ErrorWithMessage).code === 4902) {
         try {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
@@ -334,7 +348,7 @@ export default function Home() {
         } catch (stakeError: unknown) {
           console.error('Staking failed after approval:', stakeError);
           setNotification({
-            message: `Staking failed: ${(stakeError as any)?.message || 'Unknown error'}`,
+            message: `Staking failed: ${getErrorMessage(stakeError)}`,
             type: 'error'
           });
         } finally {
@@ -344,7 +358,7 @@ export default function Home() {
     } catch (error: unknown) {
       console.error('Approval failed:', error);
       setNotification({
-        message: `Approval failed: ${(error as any)?.message || 'Unknown error'}`,
+        message: `Approval failed: ${getErrorMessage(error)}`,
         type: 'error'
       });
     } finally {
@@ -379,7 +393,7 @@ export default function Home() {
     } catch (error: unknown) {
       console.error('Staking failed:', error);
       setNotification({
-        message: `Staking failed: ${(error as any)?.message || 'Unknown error'}`,
+        message: `Staking failed: ${getErrorMessage(error)}`,
         type: 'error'
       });
     } finally {
@@ -416,7 +430,7 @@ export default function Home() {
     } catch (error: unknown) {
       console.error('Unstaking failed:', error);
       setNotification({
-        message: `Unstaking failed: ${(error as any)?.message || 'Unknown error'}`,
+        message: `Unstaking failed: ${getErrorMessage(error)}`,
         type: 'error'
       });
     } finally {
@@ -444,7 +458,7 @@ export default function Home() {
     } catch (error: unknown) {
       console.error('Unstaking failed:', error);
       setNotification({
-        message: `Unstaking failed: ${(error as any)?.message || 'Unknown error'}`,
+        message: `Unstaking failed: ${getErrorMessage(error)}`,
         type: 'error'
       });
     } finally {
@@ -470,7 +484,7 @@ export default function Home() {
     } catch (error: unknown) {
       console.error('Faucet claim failed:', error);
       setNotification({
-        message: `Faucet claim failed: ${(error as any)?.message || 'Unknown error'}`,
+        message: `Faucet claim failed: ${getErrorMessage(error)}`,
         type: 'error'
       });
     } finally {
@@ -497,7 +511,7 @@ export default function Home() {
     } catch (error: unknown) {
       console.error('Claim rewards failed:', error);
       setNotification({
-        message: `Claim failed: ${(error as any)?.message || 'Unknown error'}`,
+        message: `Claim failed: ${getErrorMessage(error)}`,
         type: 'error'
       });
     } finally {

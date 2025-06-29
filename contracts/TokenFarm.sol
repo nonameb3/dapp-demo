@@ -211,7 +211,9 @@ contract TokenFarm {
         uint256 daily = (stakingBalance[user] * dailyRewardPool) / totalStakedAmount;
         uint256 monthly = daily * 30;
         uint256 annual = daily * 365;
-        uint256 share = (stakingBalance[user] * 10000) / totalStakedAmount; // Basis points
+        // Use higher precision for small percentages: multiply by 10^8 instead of 10^4
+        // This gives us 6 decimal places instead of 2
+        uint256 share = (stakingBalance[user] * 100000000) / totalStakedAmount; // Higher precision basis points
         
         return (daily, monthly, annual, share);
     }

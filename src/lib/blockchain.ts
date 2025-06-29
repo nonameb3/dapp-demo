@@ -1,15 +1,19 @@
-import { ethers } from 'ethers';
-import { getContracts, formatTokenAmount, parseTokenAmount } from './contracts';
-import { Balances, StakingData } from '@/types';
+import { ethers } from "ethers";
+import { getContracts, formatTokenAmount, parseTokenAmount, DiaTokenContract, DappTokenContract, TokenFarmContract } from "./contracts";
+import { Balances, StakingData } from "@/types";
 
 export class BlockchainService {
   private provider: ethers.BrowserProvider | null = null;
   private signer: ethers.JsonRpcSigner | null = null;
-  private contracts: ReturnType<typeof getContracts> | null = null;
+  private contracts: { 
+    diaToken: DiaTokenContract; 
+    dappToken: DappTokenContract; 
+    tokenFarm: TokenFarmContract; 
+  } | null = null;
 
   async initialize() {
     if (!window.ethereum) {
-      throw new Error('MetaMask not found');
+      throw new Error("MetaMask not found");
     }
 
     this.provider = new ethers.BrowserProvider(window.ethereum);
@@ -27,86 +31,101 @@ export class BlockchainService {
 
   async connectWallet(): Promise<string> {
     if (!this.provider) await this.initialize();
-    
+
     if (!window.ethereum) {
-      throw new Error('MetaMask not found');
+      throw new Error("MetaMask not found");
     }
-    
-    const accounts = await window.ethereum.request({
-      method: 'eth_requestAccounts',
-    });
-    
+
+    const accounts = (await window.ethereum.request({
+      method: "eth_requestAccounts",
+    })) as string[];
+
     return accounts[0];
   }
 
   async getBalances(userAddress: string): Promise<Balances> {
-    if (!this.contracts) throw new Error('Contracts not initialized');
+    if (!this.contracts) throw new Error("Contracts not initialized");
 
     try {
       // Get balances directly from token contracts and staking info from farm
       const [diaBalance, dappBalance, [stakedAmount]] = await Promise.all([
         this.contracts.diaToken.balanceOf(userAddress),
-        this.contracts.dappToken.balanceOf(userAddress), 
-        this.contracts.tokenFarm.getUserStakingInfo(userAddress)
+        this.contracts.dappToken.balanceOf(userAddress),
+        this.contracts.tokenFarm.getUserStakingInfo(userAddress),
       ]);
 
-      console.log('Raw balances:', { diaBalance, dappBalance, stakedAmount });
+      console.log("Raw balances:", { diaBalance, dappBalance, stakedAmount });
 
       return {
         diaTokenBalance: formatTokenAmount(diaBalance),
         dappTokenBalance: formatTokenAmount(dappBalance),
-        tokenFarmBalance: formatTokenAmount(stakedAmount)
+        tokenFarmBalance: formatTokenAmount(stakedAmount),
       };
     } catch (error) {
-      console.error('Error getting balances:', error);
+      console.error("Error getting balances:", error);
       // Return default values if contract calls fail
       return {
-        diaTokenBalance: '0.0',
-        dappTokenBalance: '0.0',
-        tokenFarmBalance: '0.0'
+        diaTokenBalance: "0.0",
+        dappTokenBalance: "0.0",
+        tokenFarmBalance: "0.0",
       };
     }
   }
 
   async getStakingData(userAddress?: string): Promise<StakingData> {
     if (!this.contracts) {
-      throw new Error('Contracts not initialized');
+      throw new Error("Contracts not initialized");
     }
 
     try {
       // Get pool statistics
-      const [totalStakedWei, dailyRewardsWei, annualRewardsWei] = 
-        await this.contracts.tokenFarm.getPoolStats();
-      
+      const [totalStakedWei] = await this.contracts.tokenFarm.getPoolStats();
+
       // Convert total staked to human readable
       const totalStaked = formatTokenAmount(totalStakedWei);
-      
-      let pendingRewards = '0.0';
-      let dailyReward = '0.0';
-      let monthlyReward = '0.0';
-      let annualReward = '0.0';
-      let sharePercentage = '0.0';
-      
+
+      let pendingRewards = "0.0";
+      let dailyReward = "0.0";
+      let monthlyReward = "0.0";
+      let annualReward = "0.0";
+      let sharePercentage = "0.0";
+
       // Get user-specific data if address provided
       if (userAddress) {
-        const [stakedAmount, isStaking, pendingRewardsWei, stakingStartTime, userDailyRewardWei] = 
-          await this.contracts.tokenFarm.getUserStakingData(userAddress);
-        
+        const [stakedAmount, isStaking, pendingRewardsWei] = await this.contracts.tokenFarm.getUserStakingData(
+          userAddress
+        );
+
+        // Debug logging removed for cleaner console
+
         if (isStaking && stakedAmount > 0) {
           // Convert pending rewards from wei to human readable
           pendingRewards = formatTokenAmount(pendingRewardsWei);
-          
+
           // Get projected rewards for user
-          const [dailyWei, monthlyWei, annualWei, sharePoints] = 
-            await this.contracts.tokenFarm.getUserProjectedRewards(userAddress);
-          
+          const [dailyWei, monthlyWei, annualWei, sharePoints] = await this.contracts.tokenFarm.getUserProjectedRewards(userAddress);
+
           dailyReward = formatTokenAmount(dailyWei);
           monthlyReward = formatTokenAmount(monthlyWei);
           annualReward = formatTokenAmount(annualWei);
-          sharePercentage = (Number(sharePoints) / 100).toFixed(4); // Convert basis points to percentage with 4 decimals
+
+          // Workaround: If sharePoints is 0 due to precision loss, calculate manually
+          if (Number(sharePoints) === 0 && stakedAmount > 0) {
+            // Calculate percentage manually: (userStaked / totalStaked) * 100
+            const userStakedEther = parseFloat(formatTokenAmount(stakedAmount));
+            const totalStakedEther = parseFloat(totalStaked);
+            const manualPercentage = (userStakedEther / totalStakedEther) * 100;
+            sharePercentage = manualPercentage.toFixed(6);
+
+            // Using frontend calculation due to smart contract precision limitations
+          } else {
+            // Using smart contract provided share points
+
+            sharePercentage = (Number(sharePoints) / 10000).toFixed(6); // Convert basis points to percentage with 6 decimals
+          }
         }
       }
-      
+
       // Calculate APR if user has staked tokens
       let apr = 0;
       if (userAddress) {
@@ -125,11 +144,11 @@ export class BlockchainService {
         sharePercentage,
         totalStaked,
         pendingRewards,
-        apr
+        apr,
       };
     } catch (error) {
-      console.error('Error getting staking data:', error);
-      throw new Error('Failed to fetch staking data from contract');
+      console.error("Error getting staking data:", error);
+      throw new Error("Failed to fetch staking data from contract");
     }
   }
 
@@ -138,8 +157,8 @@ export class BlockchainService {
     if (!this.contracts || !this.signer) {
       await this.initialize();
     }
-    
-    if (!this.contracts || !this.signer) throw new Error('Not connected');
+
+    if (!this.contracts || !this.signer) throw new Error("Not connected");
 
     try {
       const diaTokenWithSigner = this.contracts.diaToken.connect(this.signer);
@@ -147,18 +166,18 @@ export class BlockchainService {
       await tx.wait();
       return true;
     } catch (error) {
-      console.error('Faucet claim failed:', error);
+      console.error("Faucet claim failed:", error);
       throw error;
     }
   }
 
   async checkAllowance(userAddress: string, amount: string): Promise<boolean> {
-    if (!this.contracts) throw new Error('Contracts not initialized');
-    
+    if (!this.contracts) throw new Error("Contracts not initialized");
+
     const amountWei = parseTokenAmount(amount);
-    const tokenFarmAddress = this.contracts.tokenFarm.target || await this.contracts.tokenFarm.getAddress();
-    const allowance = await this.contracts.diaToken.allowance(userAddress, tokenFarmAddress);
-    
+    const tokenFarmAddress = this.contracts.tokenFarm.target || (await this.contracts.tokenFarm.getAddress());
+    const allowance = await this.contracts.diaToken.allowance(userAddress, tokenFarmAddress as string);
+
     return allowance >= amountWei;
   }
 
@@ -166,22 +185,22 @@ export class BlockchainService {
     if (!this.contracts || !this.signer) {
       await this.initialize();
     }
-    
-    if (!this.contracts || !this.signer) throw new Error('Not connected');
+
+    if (!this.contracts || !this.signer) throw new Error("Not connected");
 
     try {
       const amountWei = parseTokenAmount(amount);
       const diaTokenWithSigner = this.contracts.diaToken.connect(this.signer);
-      const tokenFarmAddress = this.contracts.tokenFarm.target || await this.contracts.tokenFarm.getAddress();
-      
-      console.log('Approving tokens...');
+      const tokenFarmAddress = this.contracts.tokenFarm.target || (await this.contracts.tokenFarm.getAddress());
+
+      console.log("Approving tokens...");
       const approveTx = await diaTokenWithSigner.approve(tokenFarmAddress, amountWei);
       await approveTx.wait();
-      console.log('Approval confirmed');
-      
+      console.log("Approval confirmed");
+
       return true;
     } catch (error) {
-      console.error('Approval failed:', error);
+      console.error("Approval failed:", error);
       throw error;
     }
   }
@@ -191,24 +210,24 @@ export class BlockchainService {
     if (!this.contracts || !this.signer) {
       await this.initialize();
     }
-    
-    if (!this.contracts || !this.signer) throw new Error('Not connected');
+
+    if (!this.contracts || !this.signer) throw new Error("Not connected");
 
     try {
       const userAddress = await this.signer.getAddress();
       const amountWei = parseTokenAmount(amount);
-      
-      console.log('Staking details:', {
+
+      console.log("Staking details:", {
         user: userAddress,
         amount: amount,
         amountWei: amountWei.toString(),
-        tokenFarmAddress: this.contracts.tokenFarm.target || await this.contracts.tokenFarm.getAddress()
+        tokenFarmAddress: this.contracts.tokenFarm.target || (await this.contracts.tokenFarm.getAddress()),
       });
 
       // Check current balance
       const diaBalance = await this.contracts.diaToken.balanceOf(userAddress);
-      console.log('Current DIA balance:', formatTokenAmount(diaBalance));
-      
+      console.log("Current DIA balance:", formatTokenAmount(diaBalance));
+
       if (diaBalance < amountWei) {
         throw new Error(`Insufficient DIA balance. Have: ${formatTokenAmount(diaBalance)}, Need: ${amount}`);
       }
@@ -216,19 +235,19 @@ export class BlockchainService {
       // Check allowance
       const hasAllowance = await this.checkAllowance(userAddress, amount);
       if (!hasAllowance) {
-        throw new Error('Insufficient allowance. Please approve tokens first.');
+        throw new Error("Insufficient allowance. Please approve tokens first.");
       }
 
       // Stake the tokens
-      console.log('Staking tokens...');
+      console.log("Staking tokens...");
       const tokenFarmWithSigner = this.contracts.tokenFarm.connect(this.signer);
       const stakeTx = await tokenFarmWithSigner.stakeTokens(amountWei);
       await stakeTx.wait();
-      console.log('Staking confirmed');
-      
+      console.log("Staking confirmed");
+
       return true;
     } catch (error) {
-      console.error('Staking failed:', error);
+      console.error("Staking failed:", error);
       throw error;
     }
   }
@@ -238,12 +257,12 @@ export class BlockchainService {
     if (!this.contracts || !this.signer) {
       await this.initialize();
     }
-    
-    if (!this.contracts || !this.signer) throw new Error('Not connected');
+
+    if (!this.contracts || !this.signer) throw new Error("Not connected");
 
     try {
       const tokenFarmWithSigner = this.contracts.tokenFarm.connect(this.signer);
-      
+
       if (amount) {
         // Partial unstaking
         const amountWei = parseTokenAmount(amount);
@@ -254,10 +273,10 @@ export class BlockchainService {
         const tx = await tokenFarmWithSigner.unStakeAllTokens();
         await tx.wait();
       }
-      
+
       return true;
     } catch (error) {
-      console.error('Unstaking failed:', error);
+      console.error("Unstaking failed:", error);
       throw error;
     }
   }
@@ -267,8 +286,8 @@ export class BlockchainService {
     if (!this.contracts || !this.signer) {
       await this.initialize();
     }
-    
-    if (!this.contracts || !this.signer) throw new Error('Not connected');
+
+    if (!this.contracts || !this.signer) throw new Error("Not connected");
 
     try {
       const tokenFarmWithSigner = this.contracts.tokenFarm.connect(this.signer);
@@ -276,14 +295,14 @@ export class BlockchainService {
       await tx.wait();
       return true;
     } catch (error) {
-      console.error('Claim rewards failed:', error);
+      console.error("Claim rewards failed:", error);
       throw error;
     }
   }
 
   async checkNetwork(): Promise<string> {
-    if (!this.provider) throw new Error('Provider not initialized');
-    
+    if (!this.provider) throw new Error("Provider not initialized");
+
     const network = await this.provider.getNetwork();
     return `0x${network.chainId.toString(16)}`;
   }

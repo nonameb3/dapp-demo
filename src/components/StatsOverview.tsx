@@ -29,7 +29,7 @@ export default function StatsOverview({ balances, stakingData }: StatsOverviewPr
           </p>
         </div>
         <p className="text-xs text-gray-500">
-          {stakingData.sharePercentage}% pool share • {stakingData.totalStaked} DIA total
+          {stakingData.sharePercentage}% your pool share • {stakingData.totalStaked} DIA total
         </p>
       </div>
     </div>

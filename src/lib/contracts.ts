@@ -7,6 +7,40 @@ export const CONTRACT_ADDRESSES = {
   TOKEN_FARM: '0x26cc25E3aE87BE2C49d1EF554dBbA7b8369c6591'   // TokenFarmProportionalModule#TokenFarm
 };
 
+// Contract type definitions
+export interface DiaTokenContract extends ethers.BaseContract {
+  balanceOf(address: string): Promise<bigint>;
+  approve(spender: string, amount: bigint): Promise<ethers.ContractTransactionResponse>;
+  allowance(owner: string, spender: string): Promise<bigint>;
+  faucet(): Promise<ethers.ContractTransactionResponse>;
+  decimals(): Promise<number>;
+  symbol(): Promise<string>;
+}
+
+export interface DappTokenContract extends ethers.BaseContract {
+  balanceOf(address: string): Promise<bigint>;
+  decimals(): Promise<number>;
+  symbol(): Promise<string>;
+}
+
+export interface TokenFarmContract extends ethers.BaseContract {
+  stakeTokens(amount: bigint): Promise<ethers.ContractTransactionResponse>;
+  unStakeTokens(amount: bigint): Promise<ethers.ContractTransactionResponse>;
+  unStakeAllTokens(): Promise<ethers.ContractTransactionResponse>;
+  claimRewards(): Promise<ethers.ContractTransactionResponse>;
+  getUserStakingInfo(user: string): Promise<[bigint, boolean]>;
+  getUserStakingData(user: string): Promise<[bigint, boolean, bigint, bigint, bigint]>;
+  getPendingRewards(user: string): Promise<bigint>;
+  getPoolStats(): Promise<[bigint, bigint, bigint, bigint, bigint]>;
+  getUserProjectedRewards(user: string): Promise<[bigint, bigint, bigint, bigint]>;
+  getUserDiaBalance(user: string): Promise<bigint>;
+  getUserDappBalance(user: string): Promise<bigint>;
+  stakingBalance(address: string): Promise<bigint>;
+  isStaking(address: string): Promise<boolean>;
+  totalStakedAmount(): Promise<bigint>;
+  dailyRewardPool(): Promise<bigint>;
+}
+
 // Contract ABIs (simplified for the functions we need)
 export const DIA_TOKEN_ABI = [
   'function balanceOf(address) view returns (uint256)',
@@ -43,9 +77,9 @@ export const TOKEN_FARM_ABI = [
 
 // Contract instances
 export const getContracts = (provider: ethers.BrowserProvider) => {
-  const diaToken = new ethers.Contract(CONTRACT_ADDRESSES.DIA_TOKEN, DIA_TOKEN_ABI, provider);
-  const dappToken = new ethers.Contract(CONTRACT_ADDRESSES.DAPP_TOKEN, DAPP_TOKEN_ABI, provider);
-  const tokenFarm = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_FARM, TOKEN_FARM_ABI, provider);
+  const diaToken = new ethers.Contract(CONTRACT_ADDRESSES.DIA_TOKEN, DIA_TOKEN_ABI, provider) as unknown as DiaTokenContract;
+  const dappToken = new ethers.Contract(CONTRACT_ADDRESSES.DAPP_TOKEN, DAPP_TOKEN_ABI, provider) as unknown as DappTokenContract;
+  const tokenFarm = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_FARM, TOKEN_FARM_ABI, provider) as unknown as TokenFarmContract;
 
   return { diaToken, dappToken, tokenFarm };
 };
