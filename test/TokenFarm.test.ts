@@ -123,7 +123,7 @@ describe("TokenFarm", function () {
       await tokenFarm.connect(owner).issueToken();
 
       // Unstake tokens
-      await tokenFarm.connect(investor).unStakeTokens();
+      await tokenFarm.connect(investor).unStakeAllTokens();
 
       // Check balances after unstaking
       const investorDiaBalance = await diaToken.balanceOf(investor.address);
