@@ -161,7 +161,7 @@ export class BlockchainService {
     if (!this.contracts || !this.signer) throw new Error("Not connected");
 
     try {
-      const diaTokenWithSigner: any = this.contracts.diaToken.connect(this.signer);
+      const diaTokenWithSigner = this.contracts.diaToken.connect(this.signer) as DiaTokenContract;
       const tx = await diaTokenWithSigner.faucet();
       await tx.wait();
       return true;
@@ -190,8 +190,8 @@ export class BlockchainService {
 
     try {
       const amountWei = parseTokenAmount(amount);
-      const diaTokenWithSigner: any = this.contracts.diaToken.connect(this.signer);
-      const tokenFarmAddress = this.contracts.tokenFarm.target || (await this.contracts.tokenFarm.getAddress());
+      const diaTokenWithSigner = this.contracts.diaToken.connect(this.signer) as DiaTokenContract;
+      const tokenFarmAddress = (this.contracts.tokenFarm.target || (await this.contracts.tokenFarm.getAddress())) as string;
 
       console.log("Approving tokens...");
       const approveTx = await diaTokenWithSigner.approve(tokenFarmAddress, amountWei);
@@ -240,7 +240,7 @@ export class BlockchainService {
 
       // Stake the tokens
       console.log("Staking tokens...");
-      const tokenFarmWithSigner: any = this.contracts.tokenFarm.connect(this.signer);
+      const tokenFarmWithSigner = this.contracts.tokenFarm.connect(this.signer) as TokenFarmContract;
       const stakeTx = await tokenFarmWithSigner.stakeTokens(amountWei);
       await stakeTx.wait();
       console.log("Staking confirmed");
@@ -261,7 +261,7 @@ export class BlockchainService {
     if (!this.contracts || !this.signer) throw new Error("Not connected");
 
     try {
-      const tokenFarmWithSigner: any = this.contracts.tokenFarm.connect(this.signer);
+      const tokenFarmWithSigner = this.contracts.tokenFarm.connect(this.signer) as TokenFarmContract;
 
       if (amount) {
         // Partial unstaking
@@ -290,7 +290,7 @@ export class BlockchainService {
     if (!this.contracts || !this.signer) throw new Error("Not connected");
 
     try {
-      const tokenFarmWithSigner: any = this.contracts.tokenFarm.connect(this.signer);
+      const tokenFarmWithSigner = this.contracts.tokenFarm.connect(this.signer) as TokenFarmContract;
       const tx = await tokenFarmWithSigner.claimRewards();
       await tx.wait();
       return true;
