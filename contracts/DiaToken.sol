@@ -46,4 +46,13 @@ contract DiaToken {
         emit Transfer(_from, _to, _value);
         return true;
     }
+
+    // Faucet function for demo - allows anyone to mint 10 DIA tokens
+    function faucet() public returns (bool success) {
+        uint256 faucetAmount = 10 * (10**uint256(decimals)); // 10 DIA tokens
+        balanceOf[msg.sender] += faucetAmount;
+        totalSupply += faucetAmount;
+        emit Transfer(address(0), msg.sender, faucetAmount);
+        return true;
+    }
 }

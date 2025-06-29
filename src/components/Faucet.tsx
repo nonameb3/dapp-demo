@@ -1,6 +1,6 @@
 import { FaucetProps } from '@/types';
 
-export default function Faucet({ account, loading, onClaimFaucet, connectWallet }: FaucetProps) {
+export default function Faucet({ account, isClaiming, onClaimFaucet, connectWallet }: FaucetProps) {
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -13,25 +13,31 @@ export default function Faucet({ account, loading, onClaimFaucet, connectWallet 
           <div className="text-4xl">🎁</div>
           <div>
             <div className="text-lg font-semibold text-gray-900">Free Tokens Available</div>
-            <div className="text-3xl font-bold text-orange-600">100 DIA</div>
+            <div className="text-3xl font-bold text-orange-600">10 DIA</div>
             <div className="text-sm text-gray-600 mt-1">
-              Claim once every 24 hours for testing
+              Claim anytime for testing
             </div>
           </div>
           
           {account ? (
             <button
-              onClick={onClaimFaucet}
-              disabled={loading}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClaimFaucet();
+              }}
+              disabled={isClaiming}
               className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-8 py-3 rounded-lg font-medium hover:from-yellow-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
             >
-              {loading ? 'Claiming...' : '🎁 CLAIM FREE TOKENS'}
+              {isClaiming ? 'Claiming...' : '🎁 CLAIM FREE TOKENS'}
             </button>
           ) : (
             <div className="space-y-2">
               <p className="text-sm text-gray-600">Connect your wallet to claim free tokens</p>
               <button
-                onClick={connectWallet}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  connectWallet();
+                }}
                 className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-2 rounded-lg font-medium hover:from-orange-600 hover:to-red-600 transition duration-200"
               >
                 Connect Wallet
@@ -44,8 +50,8 @@ export default function Faucet({ account, loading, onClaimFaucet, connectWallet 
       <div className="bg-blue-50 rounded-lg p-4">
         <h4 className="font-semibold text-blue-900 mb-2">ℹ️ Faucet Information</h4>
         <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Each claim gives you 100 DIA tokens</li>
-          <li>• You can claim once every 24 hours</li>
+          <li>• Each claim gives you 10 DIA tokens</li>
+          <li>• You can claim multiple times for testing</li>
           <li>• These are test tokens for demonstration purposes</li>
           <li>• Use them to test the staking functionality</li>
         </ul>

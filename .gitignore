@@ -42,7 +42,8 @@ next-env.d.ts
 
 node_modules
 .env
-
+ignition/deployments*
+.claude
 # Hardhat files
 /cache
 /artifacts

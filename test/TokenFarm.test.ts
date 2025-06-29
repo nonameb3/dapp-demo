@@ -1,9 +1,10 @@
 import { expect } from "chai";
 import hre from "hardhat";
-const { ethers } = hre as any;
 
 // Setup chai matchers for Hardhat
 import "@nomicfoundation/hardhat-chai-matchers";
+
+const { ethers } = hre;
 
 describe("TokenFarm", function () {
   let diaToken: any;
@@ -13,6 +14,7 @@ describe("TokenFarm", function () {
   let investor: any;
 
   beforeEach(async function () {
+    // @ts-ignore
     [owner, investor] = await ethers.getSigners();
 
     // Deploy tokens
@@ -136,6 +138,63 @@ describe("TokenFarm", function () {
       // Should still have DappToken rewards
       const dappBalance = await dappToken.balanceOf(investor.address);
       expect(dappBalance).to.equal(ethers.parseEther("100"));
+    });
+  });
+
+  describe("Faucet functionality", function () {
+    it("should allow anyone to claim 10 DIA tokens from faucet", async function () {
+      // Check initial balance
+      const initialBalance = await diaToken.balanceOf(investor.address);
+      expect(initialBalance).to.equal(ethers.parseEther("100"));
+
+      // Use faucet
+      await diaToken.connect(investor).faucet();
+
+      // Check balance after faucet
+      const newBalance = await diaToken.balanceOf(investor.address);
+      expect(newBalance).to.equal(ethers.parseEther("110")); // 100 + 10
+    });
+
+    it("should increase total supply when using faucet", async function () {
+      const initialSupply = await diaToken.totalSupply();
+
+      await diaToken.connect(investor).faucet();
+
+      const newSupply = await diaToken.totalSupply();
+      expect(newSupply).to.equal(initialSupply + ethers.parseEther("10"));
+    });
+  });
+
+  describe("Balance query functions", function () {
+    beforeEach(async function () {
+      // Set up some staking for testing
+      await diaToken.connect(investor).approve(await tokenFarm.getAddress(), ethers.parseEther("50"));
+      await tokenFarm.connect(investor).stakeTokens(ethers.parseEther("50"));
+      await tokenFarm.connect(owner).issueToken(); // Give some DAPP rewards
+    });
+
+    it("should return correct staking info", async function () {
+      const [stakedAmount, stakingStatus] = await tokenFarm.getUserStakingInfo(investor.address);
+
+      expect(stakedAmount).to.equal(ethers.parseEther("50"));
+      expect(stakingStatus).to.be.true;
+    });
+
+    it("should return correct DIA balance", async function () {
+      const diaBalance = await tokenFarm.getUserDiaBalance(investor.address);
+      expect(diaBalance).to.equal(ethers.parseEther("50")); // 100 - 50 staked
+    });
+
+    it("should return correct DAPP balance", async function () {
+      const dappBalance = await tokenFarm.getUserDappBalance(investor.address);
+      expect(dappBalance).to.equal(ethers.parseEther("50")); // Rewards from staking
+    });
+
+    it("should return zero for non-staking user", async function () {
+      const [stakedAmount, stakingStatus] = await tokenFarm.getUserStakingInfo(owner.address);
+
+      expect(stakedAmount).to.equal(ethers.parseEther("0"));
+      expect(stakingStatus).to.be.false;
     });
   });
 });

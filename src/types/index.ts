@@ -30,14 +30,16 @@ export interface StatsOverviewProps {
 
 export interface ClaimRewardsProps {
   stakingData: StakingData;
-  loading: boolean;
+  isClaimingRewards: boolean;
   onClaimRewards: () => void;
 }
 
 export interface StakeTokensProps {
   balances: Balances;
   stakeAmount: number;
-  loading: boolean;
+  isApproving: boolean;
+  isStaking: boolean;
+  needsApproval: boolean;
   onStakeAmountChange: (amount: number) => void;
   onStake: (e: React.FormEvent) => void;
 }
@@ -45,7 +47,7 @@ export interface StakeTokensProps {
 export interface UnstakeTokensProps {
   balances: Balances;
   unstakeAmount: number;
-  loading: boolean;
+  isUnstaking: boolean;
   onUnstakeAmountChange: (amount: number) => void;
   onUnstake: (e: React.FormEvent) => void;
   onUnstakeAll: () => void;
@@ -53,7 +55,7 @@ export interface UnstakeTokensProps {
 
 export interface FaucetProps {
   account: string;
-  loading: boolean;
+  isClaiming: boolean;
   onClaimFaucet: () => void;
   connectWallet: () => void;
 }

@@ -1,6 +1,6 @@
 import { ClaimRewardsProps } from "@/types";
 
-export default function ClaimRewards({ stakingData, loading, onClaimRewards }: ClaimRewardsProps) {
+export default function ClaimRewards({ stakingData, isClaimingRewards, onClaimRewards }: ClaimRewardsProps) {
   const pendingRewards = parseFloat(stakingData.pendingRewards || "0");
 
   return (
@@ -23,11 +23,14 @@ export default function ClaimRewards({ stakingData, loading, onClaimRewards }: C
           </div>
           <div>
             <button
-              onClick={onClaimRewards}
-              disabled={loading || pendingRewards <= 0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClaimRewards();
+              }}
+              disabled={isClaimingRewards || pendingRewards <= 0}
               className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-3 rounded-xl font-bold text-lg hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 shadow-lg"
             >
-              {loading ? "⏳ Claiming..." : pendingRewards > 0 ? "🎉 CLAIM REWARDS" : "💰 NO REWARDS YET"}
+              {isClaimingRewards ? "⏳ Claiming..." : pendingRewards > 0 ? "🎉 CLAIM REWARDS" : "💰 NO REWARDS YET"}
             </button>
           </div>
         </div>

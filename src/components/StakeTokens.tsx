@@ -3,7 +3,9 @@ import { StakeTokensProps } from '@/types';
 export default function StakeTokens({ 
   balances, 
   stakeAmount, 
-  loading, 
+  isApproving,
+  isStaking,
+  needsApproval,
   onStakeAmountChange, 
   onStake 
 }: StakeTokensProps) {
@@ -13,7 +15,7 @@ export default function StakeTokens({
         <span className="mr-2">🚀</span> Stake Tokens
       </h3>
       
-      <form onSubmit={onStake} className="space-y-4">
+      <div className="space-y-4">
         <div>
           <div className="flex justify-between items-center mb-2">
             <label className="text-sm font-medium text-blue-700">Amount to Stake</label>
@@ -41,28 +43,40 @@ export default function StakeTokens({
           <div className="flex space-x-2 mt-2">
             <button
               type="button"
-              onClick={() => onStakeAmountChange(parseFloat(balances.diaTokenBalance) * 0.25)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStakeAmountChange(parseFloat(balances.diaTokenBalance) * 0.25);
+              }}
               className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
             >
               25%
             </button>
             <button
               type="button"
-              onClick={() => onStakeAmountChange(parseFloat(balances.diaTokenBalance) * 0.5)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStakeAmountChange(parseFloat(balances.diaTokenBalance) * 0.5);
+              }}
               className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
             >
               50%
             </button>
             <button
               type="button"
-              onClick={() => onStakeAmountChange(parseFloat(balances.diaTokenBalance) * 0.75)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStakeAmountChange(parseFloat(balances.diaTokenBalance) * 0.75);
+              }}
               className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
             >
               75%
             </button>
             <button
               type="button"
-              onClick={() => onStakeAmountChange(parseFloat(balances.diaTokenBalance))}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStakeAmountChange(parseFloat(balances.diaTokenBalance));
+              }}
               className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
             >
               MAX
@@ -71,13 +85,23 @@ export default function StakeTokens({
         </div>
 
         <button
-          type="submit"
-          disabled={loading || !stakeAmount || stakeAmount <= 0}
+          type="button"
+          disabled={(isApproving || isStaking) || !stakeAmount || stakeAmount <= 0}
           className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onStake(e);
+          }}
         >
-          {loading ? '⏳ Staking...' : '🚀 STAKE TOKENS'}
+          {isApproving 
+            ? '⏳ Approving...' 
+            : isStaking 
+            ? '⏳ Staking...'
+            : (needsApproval ? '✅ APPROVE TOKENS' : '🚀 STAKE TOKENS')
+          }
         </button>
-      </form>
+      </div>
     </div>
   );
 }

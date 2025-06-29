@@ -8,7 +8,8 @@ const TokenFarmModule = buildModule("TokenFarmModule", (m) => {
   const dappToken = m.contract("DappToken");
 
   // Deploy TokenFarm with both tokens as constructor parameters
-  const tokenFarm = m.contract("TokenFarm", [dappToken, diaToken]);
+  // Note: Constructor expects (DiaToken, DappToken) in that order
+  const tokenFarm = m.contract("TokenFarm", [diaToken, dappToken]);
 
   // Transfer all DappToken supply to TokenFarm for rewards
   m.call(dappToken, "transfer", [tokenFarm, m.staticCall(dappToken, "totalSupply")]);

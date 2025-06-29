@@ -14,6 +14,7 @@ import {
   NotificationBanner
 } from '@/components';
 import { Balances, StakingData } from '@/types';
+import { blockchainService } from '@/lib/blockchain';
 
 // Chain configurations
 const SUPPORTED_CHAINS = {
@@ -28,16 +29,16 @@ const SUPPORTED_CHAINS = {
     },
     blockExplorerUrls: ['https://sepolia-explorer.base.org'],
   },
-  '0x2105': {
-    name: 'Base Mainnet',
-    chainId: '0x2105',
-    rpcUrls: ['https://mainnet.base.org'],
+  '0x7a69': {
+    name: 'Local Hardhat',
+    chainId: '0x7a69',
+    rpcUrls: ['http://127.0.0.1:8545'],
     nativeCurrency: {
       name: 'Ethereum',
       symbol: 'ETH',
       decimals: 18,
     },
-    blockExplorerUrls: ['https://basescan.org'],
+    blockExplorerUrls: [],
   },
 } as const;
 
@@ -45,10 +46,18 @@ const DEFAULT_CHAIN = SUPPORTED_CHAINS['0x14a34'];
 
 export default function Home() {
   const [account, setAccount] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loadingStates, setLoadingStates] = useState({
+    connecting: false,
+    faucet: false,
+    approve: false,
+    stake: false,
+    unstake: false,
+    claimRewards: false,
+  });
   const [stakeAmount, setStakeAmount] = useState<number>(0);
   const [unstakeAmount, setUnstakeAmount] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'stake' | 'faucet'>('stake');
+  const [needsApproval, setNeedsApproval] = useState<boolean>(true);
   const [currentChainId, setCurrentChainId] = useState<string>('');
   const [notification, setNotification] = useState<{
     message: string;
@@ -57,7 +66,7 @@ export default function Home() {
   } | null>(null);
   
   const [balances, setBalances] = useState<Balances>({
-    diaTokenBalance: '1000.0',
+    diaTokenBalance: '0.0',
     dappTokenBalance: '0.0',
     tokenFarmBalance: '0.0',
   });
@@ -69,24 +78,53 @@ export default function Home() {
     pendingRewards: '0.0',
   });
 
-  // Mock reward calculation effect
+  // Helper function to update loading states
+  const setLoading = (action: keyof typeof loadingStates, isLoading: boolean) => {
+    setLoadingStates(prev => ({ ...prev, [action]: isLoading }));
+  };
+
+  // Check if any loading is active
+  const isAnyLoading = Object.values(loadingStates).some(loading => loading);
+
+  // Check approval when stake amount changes
   useEffect(() => {
-    if (parseFloat(balances.tokenFarmBalance) > 0) {
-      const interval = setInterval(() => {
-        const staked = parseFloat(balances.tokenFarmBalance);
-        const dailyRate = stakingData.apr / 365 / 100;
-        const newReward = staked * dailyRate;
-        
-        setStakingData(prev => ({
-          ...prev,
-          dailyReward: newReward.toFixed(6),
-          pendingRewards: (parseFloat(prev.pendingRewards) + newReward / 24).toFixed(6)
-        }));
-      }, 60000); // Update every minute for demo
+    const checkApproval = async () => {
+      if (account && stakeAmount > 0) {
+        try {
+          const hasAllowance = await blockchainService.checkAllowance(account, stakeAmount.toString());
+          setNeedsApproval(!hasAllowance);
+        } catch (error) {
+          console.error('Error checking allowance:', error);
+          setNeedsApproval(true);
+        }
+      } else {
+        setNeedsApproval(true);
+      }
+    };
+
+    checkApproval();
+  }, [account, stakeAmount]);
+
+  // Load balances from blockchain
+  const loadBalances = async (userAddress: string) => {
+    if (!userAddress) return;
+    
+    try {
+      const newBalances = await blockchainService.getBalances(userAddress);
+      setBalances(newBalances);
       
-      return () => clearInterval(interval);
+      const newStakingData = await blockchainService.getStakingData(userAddress);
+      setStakingData(newStakingData);
+      
+      // Check if approval is needed for current stake amount
+      if (stakeAmount > 0) {
+        const hasAllowance = await blockchainService.checkAllowance(userAddress, stakeAmount.toString());
+        setNeedsApproval(!hasAllowance);
+      }
+    } catch (error) {
+      console.error('Error loading balances:', error);
     }
-  }, [balances.tokenFarmBalance, stakingData.apr]);
+  };
 
   // Check current chain on load
   useEffect(() => {
@@ -119,8 +157,21 @@ export default function Home() {
     
     // Listen for chain changes
     if (window.ethereum && typeof window !== 'undefined') {
-      const handleChainChanged = (chainId: string) => {
+      const handleChainChanged = async (chainId: string) => {
         setCurrentChainId(chainId);
+        
+        // Reinitialize blockchain service when network changes
+        try {
+          await blockchainService.reinitialize();
+          
+          // Reload balances if user is connected
+          if (account) {
+            await loadBalances(account);
+          }
+        } catch (error) {
+          console.error('Error reinitializing after network change:', error);
+        }
+
         if (chainId !== DEFAULT_CHAIN.chainId) {
           setNotification({
             message: `Network changed! This demo works best on ${DEFAULT_CHAIN.name}.`,
@@ -157,8 +208,8 @@ export default function Home() {
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: chainConfig.chainId }],
       });
-    } catch (switchError: any) {
-      if (switchError.code === 4902) {
+    } catch (switchError: unknown) {
+      if ((switchError as any).code === 4902) {
         try {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
@@ -182,155 +233,233 @@ export default function Home() {
   };
 
   const connectWallet = async () => {
-    if (typeof window !== 'undefined' && typeof window.ethereum !== 'undefined') {
-      try {
-        const accounts = await window.ethereum.request({
-          method: 'eth_requestAccounts',
-        }) as string[];
-        setAccount(accounts[0]);
-        
-        const chainId = await window.ethereum.request({ method: 'eth_chainId' }) as string;
-        setCurrentChainId(chainId);
-        
-        if (chainId !== DEFAULT_CHAIN.chainId) {
-          setNotification({
-            message: `This demo page is optimized for ${DEFAULT_CHAIN.name}! Switch to this network for the full experience.`,
-            type: 'warning',
-            actionButton: {
-              text: 'Switch Network',
-              onClick: () => {
-                switchToChain(DEFAULT_CHAIN);
-                setNotification(null);
-              }
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Error connecting wallet:', error);
+    try {
+      setLoading('connecting', true);
+      
+      // Always reinitialize to ensure we have the latest network
+      await blockchainService.reinitialize();
+      
+      const account = await blockchainService.connectWallet();
+      setAccount(account);
+      
+      // Load balances after connecting
+      await loadBalances(account);
+      
+      const chainId = await blockchainService.checkNetwork();
+      setCurrentChainId(chainId);
+      
+      if (chainId !== DEFAULT_CHAIN.chainId) {
         setNotification({
-          message: 'Could not connect to your wallet. Please make sure MetaMask is installed and try again!',
-          type: 'error'
+          message: `This demo works best on ${DEFAULT_CHAIN.name}! Switch to this network for full functionality.`,
+          type: 'warning',
+          actionButton: {
+            text: 'Switch Network',
+            onClick: () => {
+              switchToChain(DEFAULT_CHAIN);
+              setNotification(null);
+            }
+          }
         });
       }
-    } else {
+    } catch (error) {
+      console.error('Error connecting wallet:', error);
       setNotification({
-        message: 'This demo requires MetaMask! Please install MetaMask browser extension to continue.',
-        type: 'warning'
+        message: 'Could not connect to your wallet. Please make sure MetaMask is installed and try again!',
+        type: 'error'
       });
+    } finally {
+      setLoading('connecting', false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!stakeAmount || stakeAmount <= 0 || !account) return;
+    
+    setLoading('approve', true);
+    
+    try {
+      await blockchainService.approveTokens(stakeAmount.toString());
+      
+      // Check allowance after approval
+      const hasAllowance = await blockchainService.checkAllowance(account, stakeAmount.toString());
+      setNeedsApproval(!hasAllowance);
+      
+      setNotification({
+        message: `Successfully approved ${stakeAmount} DIA tokens! Proceeding to stake...`,
+        type: 'success'
+      });
+
+      // If approval was successful and we have enough allowance, automatically proceed to staking
+      if (hasAllowance) {
+        setLoading('approve', false);
+        setLoading('stake', true);
+        
+        try {
+          await blockchainService.stakeTokens(stakeAmount.toString());
+          
+          // Reload balances after successful staking
+          await loadBalances(account);
+          setStakeAmount(0);
+          setNeedsApproval(true); // Reset for next stake
+          
+          setNotification({
+            message: `Successfully staked ${stakeAmount} DIA tokens!`,
+            type: 'success'
+          });
+        } catch (stakeError: unknown) {
+          console.error('Staking failed after approval:', stakeError);
+          setNotification({
+            message: `Staking failed: ${(stakeError as any)?.message || 'Unknown error'}`,
+            type: 'error'
+          });
+        } finally {
+          setLoading('stake', false);
+        }
+      }
+    } catch (error: unknown) {
+      console.error('Approval failed:', error);
+      setNotification({
+        message: `Approval failed: ${(error as any)?.message || 'Unknown error'}`,
+        type: 'error'
+      });
+    } finally {
+      setLoading('approve', false);
     }
   };
 
   const handleStake = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stakeAmount || stakeAmount <= 0) return;
+    if (!stakeAmount || stakeAmount <= 0 || !account) return;
     
-    setLoading(true);
+    // If needs approval, do approval first
+    if (needsApproval) {
+      await handleApprove();
+      return;
+    }
     
-    // Mock staking logic
-    setTimeout(() => {
-      const currentDia = parseFloat(balances.diaTokenBalance);
-      const currentStaked = parseFloat(balances.tokenFarmBalance);
+    setLoading('stake', true);
+    
+    try {
+      await blockchainService.stakeTokens(stakeAmount.toString());
       
-      if (currentDia >= stakeAmount) {
-        setBalances(prev => ({
-          ...prev,
-          diaTokenBalance: (currentDia - stakeAmount).toFixed(2),
-          tokenFarmBalance: (currentStaked + stakeAmount).toFixed(2)
-        }));
-        
-        // Update total staked
-        setStakingData(prev => ({
-          ...prev,
-          totalStaked: (parseFloat(prev.totalStaked) + stakeAmount).toFixed(2)
-        }));
-        
-        setStakeAmount(0);
-      }
+      // Reload balances after successful staking
+      await loadBalances(account);
+      setStakeAmount(0);
+      setNeedsApproval(true); // Reset for next stake
       
-      setLoading(false);
-    }, 2000);
+      setNotification({
+        message: `Successfully staked ${stakeAmount} DIA tokens!`,
+        type: 'success'
+      });
+    } catch (error: unknown) {
+      console.error('Staking failed:', error);
+      setNotification({
+        message: `Staking failed: ${(error as any)?.message || 'Unknown error'}`,
+        type: 'error'
+      });
+    } finally {
+      setLoading('stake', false);
+    }
   };
 
   const handleUnstake = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!unstakeAmount || unstakeAmount <= 0) return;
+    if (!unstakeAmount || unstakeAmount <= 0 || !account) return;
     
     const currentStaked = parseFloat(balances.tokenFarmBalance);
-    if (unstakeAmount > currentStaked) return;
+    if (unstakeAmount > currentStaked) {
+      setNotification({
+        message: 'Cannot unstake more than your staked amount!',
+        type: 'error'
+      });
+      return;
+    }
     
-    setLoading(true);
+    setLoading('unstake', true);
     
-    // Mock removing stake logic
-    setTimeout(() => {
-      const currentDia = parseFloat(balances.diaTokenBalance);
+    try {
+      await blockchainService.unstakeTokens(unstakeAmount.toString());
       
-      setBalances(prev => ({
-        ...prev,
-        diaTokenBalance: (currentDia + unstakeAmount).toFixed(2),
-        tokenFarmBalance: (currentStaked - unstakeAmount).toFixed(2)
-      }));
-      
-      // Update staking data
-      setStakingData(prev => ({
-        ...prev,
-        totalStaked: (parseFloat(prev.totalStaked) - unstakeAmount).toFixed(2)
-      }));
-      
+      // Reload balances after successful unstaking
+      await loadBalances(account);
       setUnstakeAmount(0);
-      setLoading(false);
-    }, 2000);
+      
+      setNotification({
+        message: `Successfully unstaked ${unstakeAmount} DIA tokens!`,
+        type: 'success'
+      });
+    } catch (error: unknown) {
+      console.error('Unstaking failed:', error);
+      setNotification({
+        message: `Unstaking failed: ${(error as any)?.message || 'Unknown error'}`,
+        type: 'error'
+      });
+    } finally {
+      setLoading('unstake', false);
+    }
   };
 
   const handleUnstakeAll = async () => {
     const stakedAmount = parseFloat(balances.tokenFarmBalance);
-    if (stakedAmount <= 0) return;
+    if (stakedAmount <= 0 || !account) return;
     
-    setLoading(true);
+    setLoading('unstake', true);
     
-    // Mock removing all stake logic
-    setTimeout(() => {
-      const currentDia = parseFloat(balances.diaTokenBalance);
-      const pendingRewards = parseFloat(stakingData.pendingRewards);
+    try {
+      // Call unstakeTokens without amount parameter to unstake all
+      await blockchainService.unstakeTokens();
       
-      setBalances(prev => ({
-        ...prev,
-        diaTokenBalance: (currentDia + stakedAmount).toFixed(2),
-        dappTokenBalance: (parseFloat(prev.dappTokenBalance) + pendingRewards).toFixed(6),
-        tokenFarmBalance: '0.0'
-      }));
+      // Reload balances after successful unstaking
+      await loadBalances(account);
       
-      // Update staking data
-      setStakingData(prev => ({
-        ...prev,
-        totalStaked: (parseFloat(prev.totalStaked) - stakedAmount).toFixed(2),
-        dailyReward: '0.0',
-        pendingRewards: '0.0'
-      }));
-      
-      setLoading(false);
-    }, 2000);
+      setNotification({
+        message: 'Successfully unstaked all tokens!',
+        type: 'success'
+      });
+    } catch (error: unknown) {
+      console.error('Unstaking failed:', error);
+      setNotification({
+        message: `Unstaking failed: ${(error as any)?.message || 'Unknown error'}`,
+        type: 'error'
+      });
+    } finally {
+      setLoading('unstake', false);
+    }
   };
 
   const handleClaimFaucet = async () => {
-    setLoading(true);
+    if (!account) return;
     
-    // Mock faucet logic
-    setTimeout(() => {
-      const faucetAmount = 100;
-      setBalances(prev => ({
-        ...prev,
-        diaTokenBalance: (parseFloat(prev.diaTokenBalance) + faucetAmount).toFixed(2)
-      }));
-      setLoading(false);
-    }, 1500);
+    setLoading('faucet', true);
+    
+    try {
+      await blockchainService.claimFaucet();
+      
+      // Reload balances after successful faucet claim
+      await loadBalances(account);
+      
+      setNotification({
+        message: 'Successfully claimed 10 DIA tokens from faucet!',
+        type: 'success'
+      });
+    } catch (error: unknown) {
+      console.error('Faucet claim failed:', error);
+      setNotification({
+        message: `Faucet claim failed: ${(error as any)?.message || 'Unknown error'}`,
+        type: 'error'
+      });
+    } finally {
+      setLoading('faucet', false);
+    }
   };
 
   const handleClaimRewards = async () => {
     const rewards = parseFloat(stakingData.pendingRewards);
     if (rewards <= 0) return;
     
-    setLoading(true);
+    setLoading('claimRewards', true);
 
+    // For now, keep mock behavior since we haven't implemented automatic rewards yet
     setTimeout(() => {
       setBalances(prev => ({
         ...prev,
@@ -342,7 +471,12 @@ export default function Home() {
         pendingRewards: '0.0'
       }));
       
-      setLoading(false);
+      setNotification({
+        message: `Claimed ${rewards.toFixed(6)} DAPP tokens!`,
+        type: 'success'
+      });
+      
+      setLoading('claimRewards', false);
     }, 1500);
   };
 
@@ -370,6 +504,18 @@ export default function Home() {
             onClose={() => setNotification(null)}
             actionButton={notification.actionButton}
           />
+        )}
+
+        {/* Debug refresh button */}
+        {account && (
+          <div className="mb-4">
+            <button
+              onClick={() => loadBalances(account)}
+              className="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600"
+            >
+              🔄 Refresh Balances
+            </button>
+          </div>
         )}
         <StatsOverview balances={balances} stakingData={stakingData} />
 
@@ -407,7 +553,7 @@ export default function Home() {
                   <div className="space-y-8">
                     <ClaimRewards 
                       stakingData={stakingData}
-                      loading={loading}
+                      isClaimingRewards={loadingStates.claimRewards}
                       onClaimRewards={handleClaimRewards}
                     />
 
@@ -415,7 +561,9 @@ export default function Home() {
                       <StakeTokens
                         balances={balances}
                         stakeAmount={stakeAmount}
-                        loading={loading}
+                        isApproving={loadingStates.approve}
+                        isStaking={loadingStates.stake}
+                        needsApproval={needsApproval}
                         onStakeAmountChange={setStakeAmount}
                         onStake={handleStake}
                       />
@@ -423,7 +571,7 @@ export default function Home() {
                       <UnstakeTokens
                         balances={balances}
                         unstakeAmount={unstakeAmount}
-                        loading={loading}
+                        isUnstaking={loadingStates.unstake}
                         onUnstakeAmountChange={setUnstakeAmount}
                         onUnstake={handleUnstake}
                         onUnstakeAll={handleUnstakeAll}
@@ -437,7 +585,7 @@ export default function Home() {
             ) : (
               <Faucet 
                 account={account}
-                loading={loading}
+                isClaiming={loadingStates.faucet}
                 onClaimFaucet={handleClaimFaucet}
                 connectWallet={connectWallet}
               />

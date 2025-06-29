@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      chai:
+        specifier: ^4.5.0
+        version: 4.5.0
+      dotenv:
+        specifier: ^17.0.0
+        version: 17.0.0
       ethers:
         specifier: ^6.14.4
         version: 6.14.4(bufferutil@4.0.5)(utf-8-validate@5.0.7)
@@ -1590,6 +1596,10 @@ packages:
   doctrine@2.1.0:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
     engines: {node: '>=0.10.0'}
+
+  dotenv@17.0.0:
+    resolution: {integrity: sha512-A0BJ5lrpJVSfnMMXjmeO0xUnoxqsBHWCoqqTnGwGYVdnctqXXUEhJOO7LxmgxJon9tEZFGpe0xPRX0h2v3AANQ==}
+    engines: {node: '>=12'}
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -5300,6 +5310,8 @@ snapshots:
   doctrine@2.1.0:
     dependencies:
       esutils: 2.0.3
+
+  dotenv@17.0.0: {}
 
   dunder-proto@1.0.1:
     dependencies:

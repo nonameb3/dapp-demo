@@ -40,10 +40,26 @@ contract TokenFarm {
         hasStaked[msg.sender] = true;
     }
 
-    // unstake token
-    function unStakeTokens() public {
-        uint balance =  stakingBalance[msg.sender];
+    // unstake specific amount of tokens
+    function unStakeTokens(uint _amount) public {
+        require(_amount > 0, 'Amount must be greater than zero');
+        require(stakingBalance[msg.sender] >= _amount, 'Insufficient staked balance');
 
+        // Transfer the specified amount back to user
+        diaToken.transfer(msg.sender, _amount);
+
+        // Update staking balance
+        stakingBalance[msg.sender] -= _amount;
+
+        // If user has no more staked tokens, set isStaking to false
+        if (stakingBalance[msg.sender] == 0) {
+            isStaking[msg.sender] = false;
+        }
+    }
+
+    // unstake all tokens (legacy function for compatibility)
+    function unStakeAllTokens() public {
+        uint balance = stakingBalance[msg.sender];
         require(balance > 0, 'account is empty balance');
 
         diaToken.transfer(msg.sender, balance);
@@ -65,6 +81,19 @@ contract TokenFarm {
                 dappToken.transfer(recipient, balance);
             }
         }
+    }
+
+    // Balance query functions for frontend
+    function getUserStakingInfo(address user) public view returns (uint256 stakedAmount, bool stakingStatus) {
+        return (stakingBalance[user], isStaking[user]);
+    }
+
+    function getUserDiaBalance(address user) public view returns (uint256) {
+        return diaToken.balanceOf(user);
+    }
+
+    function getUserDappBalance(address user) public view returns (uint256) {
+        return dappToken.balanceOf(user);
     }
 
 }
