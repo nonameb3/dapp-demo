@@ -161,7 +161,7 @@ export class BlockchainService {
     if (!this.contracts || !this.signer) throw new Error("Not connected");
 
     try {
-      const diaTokenWithSigner = this.contracts.diaToken.connect(this.signer);
+      const diaTokenWithSigner: any = this.contracts.diaToken.connect(this.signer);
       const tx = await diaTokenWithSigner.faucet();
       await tx.wait();
       return true;
@@ -190,7 +190,7 @@ export class BlockchainService {
 
     try {
       const amountWei = parseTokenAmount(amount);
-      const diaTokenWithSigner = this.contracts.diaToken.connect(this.signer);
+      const diaTokenWithSigner: any = this.contracts.diaToken.connect(this.signer);
       const tokenFarmAddress = this.contracts.tokenFarm.target || (await this.contracts.tokenFarm.getAddress());
 
       console.log("Approving tokens...");
@@ -240,7 +240,7 @@ export class BlockchainService {
 
       // Stake the tokens
       console.log("Staking tokens...");
-      const tokenFarmWithSigner = this.contracts.tokenFarm.connect(this.signer);
+      const tokenFarmWithSigner: any = this.contracts.tokenFarm.connect(this.signer);
       const stakeTx = await tokenFarmWithSigner.stakeTokens(amountWei);
       await stakeTx.wait();
       console.log("Staking confirmed");
@@ -261,7 +261,7 @@ export class BlockchainService {
     if (!this.contracts || !this.signer) throw new Error("Not connected");
 
     try {
-      const tokenFarmWithSigner = this.contracts.tokenFarm.connect(this.signer);
+      const tokenFarmWithSigner: any = this.contracts.tokenFarm.connect(this.signer);
 
       if (amount) {
         // Partial unstaking
@@ -290,7 +290,7 @@ export class BlockchainService {
     if (!this.contracts || !this.signer) throw new Error("Not connected");
 
     try {
-      const tokenFarmWithSigner = this.contracts.tokenFarm.connect(this.signer);
+      const tokenFarmWithSigner: any = this.contracts.tokenFarm.connect(this.signer);
       const tx = await tokenFarmWithSigner.claimRewards();
       await tx.wait();
       return true;
